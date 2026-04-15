@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>KCC TPO Life Calculator</title>
+<style>
+:root{
+  --bg:#111214;--surface:#1c1e22;--surface2:#252830;--border:#333740;
+  --accent:#c40001;--accent2:#e05050;--text:#f0f2f5;--muted:#9aa0b0;
+  --green:#3ecf8e;--red:#ff5c5c;--yellow:#f5c842;--blue:#6ab4ff;
+  --orange:#ff9a3c;--sp:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);color:var(--text);font-family:sans-serif;font-size:16px;min-height:100vh;padding-bottom:120px;}
+
+/* ── HEADER ── */
+.app-header{background:linear-gradient(180deg,#1a1c20,#111214);border-bottom:3px solid var(--accent);padding:0 16px;position:sticky;top:0;z-index:100;}
+.header-top{display:flex;align-items:center;gap:12px;padding:10px 0 6px;}
+.header-icon{font-size:28px;line-height:1;}
+.header-titles{flex:1;}
+.header-titles h1{font-size:16px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text);line-height:1.1;}
+.header-titles .app-sub{font-size:9px;color:var(--accent2);letter-spacing:.1em;text-transform:uppercase;margin-top:2px;}
+.header-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+.auth-status{font-size:9px;color:var(--muted);cursor:pointer;font-family:monospace;padding:3px 7px;border-radius:5px;border:1px solid var(--border);}
+.auth-status.ok{color:var(--green);border-color:#2a6a2a;background:#0f1f0f;}
+.phase-bar{font-size:9px;color:var(--muted);font-family:monospace;text-align:right;}
+.progress-bar{height:2px;background:var(--border);overflow:hidden;margin-top:6px;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s;width:0%;}
+
+/* ── AUTH OVERLAY ── */
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:500;display:none;align-items:center;justify-content:center;padding:32px;}
+.overlay.show{display:flex;}
+.overlay-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;max-width:340px;width:100%;}
+.overlay-logo{font-size:48px;text-align:center;margin-bottom:12px;}
+.overlay-card h2{font-size:20px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;text-align:center;}
+.overlay-card .sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:24px;line-height:1.5;}
+.g-btn{background:#fff;border:none;border-radius:10px;padding:14px 20px;font-size:15px;font-weight:600;color:#111;width:100%;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;}
+.g-btn svg{flex-shrink:0;}
+.g-btn:active{background:#eee;}
+
+/* ── SCREEN SYSTEM ── */
+.screen{display:none;padding:0;}
+.screen.active{display:block;}
+
+/* ── JOB LIST SCREEN ── */
+.screen-header{padding:20px 16px 12px;}
+.screen-header h2{font-size:18px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;}
+.screen-header p{font-size:12px;color:var(--muted);margin-top:4px;font-family:monospace;}
+
+.search-bar{margin:0 16px 12px;position:relative;}
+.search-input{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px 12px 40px;color:var(--text);font-size:14px;width:100%;outline:none;}
+.search-input:focus{border-color:var(--accent);}
+.search-input::placeholder{color:var(--muted);}
+.search-icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--muted);}
+
+.job-list{padding:0 16px;}
+.job-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer;position:relative;overflow:hidden;transition:border-color .15s;}
+.job-card:active{border-color:var(--accent);background:#1a0a0a;}
+.job-card-year{font-size:10px;font-family:monospace;color:var(--accent2);letter-spacing:.1em;margin-bottom:4px;}
+.job-card-address{font-size:15px;font-weight:700;color:var(--text);line-height:1.3;}
+.job-card-meta{display:flex;gap:12px;margin-top:8px;align-items:center;}
+.job-tag{font-size:10px;font-family:monospace;padding:3px 8px;border-radius:5px;font-weight:600;}
+.tag-csv{background:#1a2a1a;color:var(--green);border:1px solid #2a5a2a;}
+.tag-no-csv{background:#2a1a1a;color:var(--muted);border:1px solid var(--border);}
+.tag-storm{background:#1a2a3a;color:var(--blue);border:1px solid #1a4a6a;}
+.tag-no-storm{background:var(--surface2);color:var(--muted);border:1px solid var(--border);}
+.job-card-arrow{position:absolute;right:16px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--muted);}
+.job-card.has-csv .job-card-arrow{color:var(--accent2);}
+
+.empty-state{text-align:center;padding:60px 24px;color:var(--muted);}
+.empty-state .es-icon{font-size:48px;margin-bottom:16px;}
+.empty-state p{font-size:14px;line-height:1.6;}
+
+.loading-state{text-align:center;padding:60px 24px;}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 16px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-state p{font-size:13px;color:var(--muted);font-family:monospace;}
+
+.refresh-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;margin:12px auto 0;}
+.refresh-btn:active{border-color:var(--accent);color:var(--accent2);}
+
+/* ── JOB DETAIL / LOADING ── */
+.job-loading{padding:40px 16px;text-align:center;}
+.job-loading .jl-icon{font-size:40px;margin-bottom:16px;}
+.job-loading h3{font-size:16px;font-weight:700;text-transform:uppercase;margin-bottom:8px;}
+.job-loading p{font-size:12px;color:var(--muted);font-family:monospace;line-height:1.6;}
+.step-list{margin:24px 0;text-align:left;}
+.step-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.step-item:last-child{border-bottom:none;}
+.step-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.dot-pending{background:var(--border);}
+.dot-active{background:var(--yellow);box-shadow:0 0 6px var(--yellow);}
+.dot-done{background:var(--green);}
+.dot-error{background:var(--red);}
+.step-item-label{color:var(--muted);}
+.step-item-label.active{color:var(--text);font-weight:600;}
+.step-item-label.done{color:var(--green);}
+.step-item-label.error{color:var(--red);}
+.step-item-result{margin-left:auto;font-size:11px;font-family:monospace;color:var(--muted);}
+
+/* ── PARSED DATA PREVIEW ── */
+.parsed-screen{padding:0 16px 16px;}
+.data-block{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:12px;}
+.data-block-hdr{background:var(--surface2);padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);}
+.data-block-icon{font-size:15px;}
+.data-block-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent2);flex:1;}
+.data-block-badge{font-size:10px;font-family:monospace;color:var(--muted);}
+.data-row{display:flex;justify-content:space-between;align-items:flex-start;padding:9px 14px;border-bottom:1px solid var(--border);gap:12px;}
+.data-row:last-child{border-bottom:none;}
+.data-label{font-size:12px;color:var(--muted);flex-shrink:0;max-width:45%;}
+.data-value{font-size:12px;color:var(--text);font-family:monospace;text-align:right;word-break:break-word;}
+.data-value.highlight{color:var(--green);font-weight:600;}
+.data-value.warn{color:var(--yellow);}
+.data-value.missing{color:var(--muted);font-style:italic;}
+
+/* ── FLAGS ── */
+.flag-list{margin:0 16px 12px;}
+.flag-item{border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;}
+.flag-item.flag-warn{background:#2a2200;border:1px solid #6a5500;}
+.flag-item.flag-info{background:#0f1f2f;border:1px solid #1a4a6a;}
+.flag-item.flag-ok{background:#0f2a0f;border:1px solid #2a5a2a;}
+.flag-icon{font-size:16px;flex-shrink:0;margin-top:1px;}
+.flag-text{font-size:12px;line-height:1.5;color:var(--text);}
+.flag-text strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;}
+
+/* ── ACTION BAR ── */
+.action-bar{position:fixed;bottom:0;left:0;right:0;padding:10px 16px 28px;background:linear-gradient(to top,var(--bg) 70%,transparent);z-index:200;}
+.proceed-btn{background:linear-gradient(135deg,var(--accent),#8a0001);border:none;border-radius:12px;padding:16px;color:#fff;font-size:17px;font-weight:800;text-transform:uppercase;width:100%;cursor:pointer;box-shadow:0 4px 20px rgba(196,0,1,.4);letter-spacing:.05em;}
+.proceed-btn:disabled{background:var(--surface2);box-shadow:none;color:var(--muted);}
+.back-btn{background:transparent;border:1px solid var(--border);border-radius:10px;padding:11px;color:var(--muted);font-size:14px;font-weight:600;width:100%;cursor:pointer;margin-top:8px;text-align:center;}
+
+/* ── SIGN OUT ── */
+.signout-row{display:flex;justify-content:center;padding:20px 16px 8px;}
+.signout-btn{background:transparent;border:none;color:var(--muted);font-size:12px;cursor:pointer;font-family:monospace;}
+.signout-btn:active{color:var(--red);}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:600;z-index:900;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none;}
+.toast.show{opacity:1;}
+.toast.toast-ok{border-color:#2a6a2a;color:var(--green);background:#0f2a0f;}
+.toast.toast-err{border-color:#6a2a2a;color:var(--red);background:#2a0f0f;}
+.toast.toast-warn{border-color:#6a5500;color:var(--yellow);background:#2a2200;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="app-header">
+  <div class="header-top">
+    <div class="header-icon">🧮</div>
+    <div class="header-titles">
+      <h1>TPO Life Calculator</h1>
+      <div class="app-sub">KCC Engineered Roofing Precision</div>
+    </div>
+    <div class="header-right">
+      <div class="auth-status" id="authStatus" onclick="handleAuthClick()">● NOT SIGNED IN</div>
+      <div class="phase-bar" id="phaseBar">PHASE 1 — JOB SELECTION</div>
+    </div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<!-- AUTH OVERLAY -->
+<div class="overlay" id="authOverlay">
+  <div class="overlay-card">
+    <div class="overlay-logo">🧮</div>
+    <h2>TPO Life Calculator</h2>
+    <p class="sub">KCC Engineered Roofing Precision<br>Sign in with your KCC Google account to continue.</p>
+    <button class="g-btn" onclick="signIn()">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2.01c-.72.48-1.63.76-2.7.76-2.08 0-3.84-1.4-4.47-3.29H1.83v2.07A8 8 0 0 0 8.98 17z"/><path fill="#FBBC05" d="M4.51 10.52A4.8 4.8 0 0 1 4.26 9c0-.53.09-1.04.25-1.52V5.41H1.83A8 8 0 0 0 .98 9c0 1.29.31 2.51.85 3.59l2.68-2.07z"/><path fill="#EA4335" d="M8.98 3.58c1.16 0 2.2.4 3.02 1.19l2.26-2.26A8 8 0 0 0 8.98 1 8 8 0 0 0 1.83 5.41L4.51 7.48C5.14 5.6 6.9 3.58 8.98 3.58z"/></svg>
+      Sign in with Google
+    </button>
+  </div>
+</div>
+
+<!-- SCREEN: JOB LIST -->
+<div class="screen active" id="screenJobList">
+  <div class="screen-header">
+    <h2>Select Job</h2>
+    <p id="jobListSub">Loading Drive folders...</p>
+  </div>
+  <div class="search-bar">
+    <span class="search-icon">🔍</span>
+    <input class="search-input" type="text" id="jobSearch" placeholder="Search address..." oninput="filterJobs()">
+  </div>
+  <div class="job-list" id="jobList">
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Searching Drive for job folders...</p>
+    </div>
+  </div>
+  <div class="signout-row">
+    <button class="signout-btn" onclick="signOut()">Sign out</button>
+  </div>
+</div>
+
+<!-- SCREEN: JOB LOADING -->
+<div class="screen" id="screenJobLoading">
+  <div class="job-loading">
+    <div class="jl-icon">📂</div>
+    <h3>Loading Job</h3>
+    <p id="jobLoadingAddress">Reading inspection data from Drive...</p>
+    <div class="step-list" id="stepList">
+      <div class="step-item" id="step-folder">
+        <div class="step-dot dot-pending" id="dot-folder"></div>
+        <span class="step-item-label" id="lbl-folder">Finding inspection folder</span>
+        <span class="step-item-result" id="res-folder"></span>
+      </div>
+      <div class="step-item" id="step-csv">
+        <div class="step-dot dot-pending" id="dot-csv"></div>
+        <span class="step-item-label" id="lbl-csv">Reading UserInput CSV</span>
+        <span class="step-item-result" id="res-csv"></span>
+      </div>
+      <div class="step-item" id="step-storm">
+        <div class="step-dot dot-pending" id="dot-storm"></div>
+        <span class="step-item-label" id="lbl-storm">Checking for storm report</span>
+        <span class="step-item-result" id="res-storm"></span>
+      </div>
+      <div class="step-item" id="step-parse">
+        <div class="step-dot dot-pending" id="dot-parse"></div>
+        <span class="step-item-label" id="lbl-parse">Parsing inspection data</span>
+        <span class="step-item-result" id="res-parse"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: JOB REVIEW -->
+<div class="screen" id="screenJobReview">
+  <div class="screen-header">
+    <h2 id="reviewTitle">Job Loaded</h2>
+    <p id="reviewSub" style="font-size:11px;color:var(--muted);margin-top:4px;font-family:monospace;"></p>
+  </div>
+
+  <div class="parsed-screen" id="parsedScreen">
+    <!-- Dynamically populated -->
+  </div>
+
+  <div class="flag-list" id="flagList"></div>
+
+  <div class="action-bar">
+    <button class="proceed-btn" id="proceedBtn" onclick="proceedToChecklist()">Begin TPO Assessment →</button>
+    <button class="back-btn" onclick="goBack()">← Choose Different Job</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONSTANTS ──
+const CLIENT_ID = '253782351183-8pgd31f0ttse239isq7d0velvd5gcknb.apps.googleusercontent.com';
+const KCC_ROOT_FOLDER_ID = '1OoAIRWoJw0WSaos3ieV-bUX96OR9NA5o';
+const SHEETS_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTh0tjaBLG5QrcExjVIUqyjBXBEb2hwe10fC82MmkQZvQ0xBCbPdnss9-IRMMalmwaj3o1YtEFiSwlB/pub?gid=0&single=true&output=csv';
+const JOB_REGISTRY_SHEET_ID = '1cElx3edOb_3dNeLYy6f-mLiyi6zghsWoCGnPLLWr3Rc';
+const PROXY_URL = 'https://kcc-proxy.netlify.app/api/claude';
+// Scope versioning — bump KCC_SCOPE_VER when adding new OAuth scopes to force re-auth
+const KCC_SCOPE_VER = 'v1';
+const SCOPES_V1 = [
+  'https://www.googleapis.com/auth/drive',
+  'https://www.googleapis.com/auth/gmail.send'
+].join(' ');
+// Phase 2 will upgrade to v2 adding spreadsheets scope:
+// const SCOPES_V2 = SCOPES_V1 + ' https://www.googleapis.com/auth/spreadsheets';
+const SCOPES = SCOPES_V1;
+const SAVE_KEY = 'kccRUL_v1';
+
+// ── STATE ──
+let accessToken = null;
+let tokenExpiry = 0;
+let allJobs = [];
+let selectedJob = null;
+let parsedData = null;
+let stormReportFound = false;
+let inspectionFolderId = null;
+let csvFileId = null;
+let inspectorList = [];
+
+// ── AUTH ──
+function loadGapi() {
+  return new Promise(resolve => {
+    if (window.google) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://accounts.google.com/gsi/client';
+    s.onload = resolve;
+    document.head.appendChild(s);
+  });
+}
+
+async function initAuth() {
+  await loadGapi();
+  // Scope version check — if stored version differs, force re-auth to get new scopes
+  const storedScopeVer = localStorage.getItem('kcc_scope_ver');
+  if (storedScopeVer && storedScopeVer !== KCC_SCOPE_VER) {
+    localStorage.removeItem('kcc_token');
+    localStorage.removeItem('kcc_token_expiry');
+    localStorage.removeItem('kcc_scope_ver');
+  }
+  const saved = loadState();
+  if (saved && saved.accessToken && saved.tokenExpiry > Date.now() + 60000) {
+    accessToken = saved.accessToken;
+    tokenExpiry = saved.tokenExpiry;
+    onAuthSuccess();
+  } else {
+    showAuthOverlay();
+  }
+  loadInspectors();
+}
+
+function showAuthOverlay() {
+  document.getElementById('authOverlay').classList.add('show');
+}
+
+function signIn() {
+  google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (response) => {
+      if (response.error) { showToast('Sign in failed: ' + response.error, 'err'); return; }
+      accessToken = response.access_token;
+      tokenExpiry = Date.now() + (response.expires_in * 1000);
+      saveState({ accessToken, tokenExpiry });
+      localStorage.setItem('kcc_scope_ver', KCC_SCOPE_VER);
+      document.getElementById('authOverlay').classList.remove('show');
+      onAuthSuccess();
+    }
+  }).requestAccessToken();
+}
+
+function signOut() {
+  accessToken = null;
+  tokenExpiry = 0;
+  saveState({});
+  setAuthStatus(false);
+  allJobs = [];
+  selectedJob = null;
+  parsedData = null;
+  showScreen('screenJobList');
+  document.getElementById('jobList').innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Searching Drive for job folders...</p></div>';
+  showAuthOverlay();
+}
+
+function handleAuthClick() {
+  if (!accessToken) signIn();
+}
+
+function setAuthStatus(ok, email) {
+  const el = document.getElementById('authStatus');
+  if (ok) {
+    el.textContent = '● SIGNED IN';
+    el.classList.add('ok');
+  } else {
+    el.textContent = '● NOT SIGNED IN';
+    el.classList.remove('ok');
+  }
+}
+
+async function onAuthSuccess() {
+  setAuthStatus(true);
+  showScreen('screenJobList');
+  loadJobFolders();
+}
+
+// ── DRIVE API ──
+async function driveApi(path, params = {}) {
+  const url = new URL('https://www.googleapis.com/drive/v3/' + path);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const r = await fetch(url.toString(), {
+    headers: { Authorization: 'Bearer ' + accessToken }
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error?.message || 'Drive API error ' + r.status);
+  }
+  return r.json();
+}
+
+async function driveDownload(fileId) {
+  const r = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+    { headers: { Authorization: 'Bearer ' + accessToken } }
+  );
+  if (!r.ok) throw new Error('Failed to download file');
+  return r.text();
+}
+
+// ── JOB FOLDER LOADING ──
+async function loadJobFolders() {
+  const listEl = document.getElementById('jobList');
+  const subEl = document.getElementById('jobListSub');
+
+  listEl.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Searching Drive for job folders...</p></div>';
+  subEl.textContent = 'Searching Drive...';
+
+  try {
+    // Find all job folders under KCC root matching "2026 ---" pattern
+    const query = `'${KCC_ROOT_FOLDER_ID}' in parents and mimeType = 'application/vnd.google-apps.folder' and name contains '2026 ---' and trashed = false`;
+    const result = await driveApi('files', {
+      q: query,
+      fields: 'files(id,name,createdTime,modifiedTime)',
+      orderBy: 'modifiedTime desc',
+      pageSize: 100
+    });
+
+    const folders = result.files || [];
+    allJobs = folders.map(f => ({
+      id: f.id,
+      name: f.name,
+      year: f.name.split(' ---')[0].trim(),
+      address: f.name.split(' --- ')[1] || f.name,
+      hasCSV: false,
+      hasStorm: false,
+      csvId: null
+    }));
+
+    subEl.textContent = `${allJobs.length} job${allJobs.length !== 1 ? 's' : ''} found — tap to open`;
+    renderJobList(allJobs);
+
+    // Background: check each folder for CSV presence
+    checkFoldersForCSV(allJobs);
+
+  } catch (e) {
+    listEl.innerHTML = `<div class="empty-state"><div class="es-icon">⚠️</div><p>Failed to load job folders.<br><span style="font-family:monospace;font-size:11px;color:var(--red)">${e.message}</span></p></div>`;
+    subEl.textContent = 'Error loading folders';
+    showToast('Drive error: ' + e.message, 'err');
+  }
+}
+
+async function checkFoldersForCSV(jobs) {
+  // Check a few at a time to avoid rate limits
+  for (let i = 0; i < jobs.length; i++) {
+    try {
+      // Check for Inspection subfolder
+      const inspQ = `'${jobs[i].id}' in parents and mimeType = 'application/vnd.google-apps.folder' and name contains 'Inspection ---' and trashed = false`;
+      const inspResult = await driveApi('files', { q: inspQ, fields: 'files(id)', pageSize: 1 });
+      if (inspResult.files && inspResult.files.length > 0) {
+        const inspId = inspResult.files[0].id;
+        const csvQ = `'${inspId}' in parents and name contains 'UserInput' and trashed = false`;
+        const csvResult = await driveApi('files', { q: csvQ, fields: 'files(id)', pageSize: 1 });
+        if (csvResult.files && csvResult.files.length > 0) {
+          allJobs[i].hasCSV = true;
+          allJobs[i].csvId = csvResult.files[0].id;
+        }
+      }
+      // Check for storm report PDF in job folder root
+      const stormQ = `'${jobs[i].id}' in parents and mimeType = 'application/pdf' and trashed = false`;
+      const stormResult = await driveApi('files', { q: stormQ, fields: 'files(id)', pageSize: 1 });
+      if (stormResult.files && stormResult.files.length > 0) {
+        allJobs[i].hasStorm = true;
+      }
+      // Re-render after each check
+      renderJobList(filterJobList());
+    } catch(e) {
+      // Silent fail — tag stays as unknown
+    }
+  }
+}
+
+function filterJobList() {
+  const q = document.getElementById('jobSearch').value.trim().toLowerCase();
+  if (!q) return allJobs;
+  return allJobs.filter(j => j.address.toLowerCase().includes(q));
+}
+
+function filterJobs() {
+  renderJobList(filterJobList());
+}
+
+function renderJobList(jobs) {
+  const listEl = document.getElementById('jobList');
+  if (jobs.length === 0) {
+    listEl.innerHTML = `<div class="empty-state"><div class="es-icon">🏠</div><p>No matching job folders found in Drive.<br><span style="font-size:11px;font-family:monospace">Folders must be named:<br>2026 --- [Address], [City], [State]</span></p></div>
+    <div style="text-align:center"><button class="refresh-btn" onclick="loadJobFolders()">↻ Refresh</button></div>`;
+    return;
+  }
+
+  listEl.innerHTML = jobs.map((j, i) => `
+    <div class="job-card ${j.hasCSV ? 'has-csv' : ''}" onclick="selectJob('${j.id}', '${escHtml(j.name)}')">
+      <div class="job-card-year">${escHtml(j.year)}</div>
+      <div class="job-card-address">${escHtml(j.address)}</div>
+      <div class="job-card-meta">
+        <span class="job-tag ${j.hasCSV ? 'tag-csv' : 'tag-no-csv'}">${j.hasCSV ? '✓ CSV' : '— CSV'}</span>
+        <span class="job-tag ${j.hasStorm ? 'tag-storm' : 'tag-no-storm'}">${j.hasStorm ? '✓ Storm' : '— Storm'}</span>
+      </div>
+      <div class="job-card-arrow">›</div>
+    </div>
+  `).join('');
+
+  // Append refresh button
+  listEl.innerHTML += `<div style="text-align:center"><button class="refresh-btn" onclick="loadJobFolders()">↻ Refresh folders</button></div>`;
+}
+
+// ── JOB SELECTION & CSV LOADING ──
+async function selectJob(folderId, folderName) {
+  selectedJob = { id: folderId, name: folderName };
+  document.getElementById('jobLoadingAddress').textContent = folderName.split(' --- ')[1] || folderName;
+  showScreen('screenJobLoading');
+  setProgress(10);
+
+  try {
+    // Step 1: Find inspection subfolder
+    setStep('folder', 'active', 'Searching...');
+    const inspQ = `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and name contains 'Inspection ---' and trashed = false`;
+    const inspResult = await driveApi('files', { q: inspQ, fields: 'files(id,name)', orderBy: 'createdTime desc', pageSize: 1 });
+
+    if (!inspResult.files || inspResult.files.length === 0) {
+      setStep('folder', 'error', 'Not found');
+      throw new Error('No Inspection subfolder found. Run the flat roof inspection app first.');
+    }
+    inspectionFolderId = inspResult.files[0].id;
+    const inspFolderName = inspResult.files[0].name;
+    setStep('folder', 'done', inspFolderName);
+    setProgress(30);
+
+    // Step 2: Find and read CSV — check inspection folder first, then one level down in structure subfolders
+    setStep('csv', 'active', 'Searching...');
+    let csvFileId_found = null;
+    let csvName_found = null;
+
+    // Try direct in inspection folder first
+    const csvQ = `'${inspectionFolderId}' in parents and name contains 'UserInput' and trashed = false`;
+    const csvResult = await driveApi('files', { q: csvQ, fields: 'files(id,name)', pageSize: 1 });
+
+    if (csvResult.files && csvResult.files.length > 0) {
+      csvFileId_found = csvResult.files[0].id;
+      csvName_found = csvResult.files[0].name;
+    } else {
+      // Look inside structure subfolders (e.g. Building/, Dwelling/)
+      const subQ = `'${inspectionFolderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+      const subResult = await driveApi('files', { q: subQ, fields: 'files(id,name)', pageSize: 5 });
+      if (subResult.files && subResult.files.length > 0) {
+        for (const sub of subResult.files) {
+          const subCsvQ = `'${sub.id}' in parents and name contains 'UserInput' and trashed = false`;
+          const subCsvResult = await driveApi('files', { q: subCsvQ, fields: 'files(id,name)', pageSize: 1 });
+          if (subCsvResult.files && subCsvResult.files.length > 0) {
+            csvFileId_found = subCsvResult.files[0].id;
+            csvName_found = subCsvResult.files[0].name;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!csvFileId_found) {
+      setStep('csv', 'error', 'Not found');
+      throw new Error('No UserInput CSV found in inspection folder or structure subfolders.');
+    }
+    csvFileId = csvFileId_found;
+    const csvName = csvName_found;
+    setStep('csv', 'done', csvName);
+    setProgress(55);
+
+    // Step 3: Check for storm report
+    setStep('storm', 'active', 'Searching...');
+    const stormQ = `'${folderId}' in parents and mimeType = 'application/pdf' and trashed = false`;
+    const stormResult = await driveApi('files', { q: stormQ, fields: 'files(id,name)', pageSize: 5 });
+    stormReportFound = (stormResult.files && stormResult.files.length > 0);
+    if (stormReportFound) {
+      setStep('storm', 'done', stormResult.files[0].name);
+    } else {
+      setStep('storm', 'error', 'Not found — add to Drive');
+    }
+    setProgress(70);
+
+    // Step 4: Download and parse CSV
+    setStep('parse', 'active', 'Parsing...');
+    const csvText = await driveDownload(csvFileId);
+    parsedData = parseCSV(csvText);
+    const fieldCount = Object.values(parsedData).reduce((a, s) => a + Object.keys(s).length, 0);
+    setStep('parse', 'done', `${fieldCount} fields`);
+    setProgress(100);
+
+    // Small delay then show review
+    await sleep(600);
+    renderJobReview();
+    showScreen('screenJobReview');
+
+  } catch(e) {
+    showToast(e.message, 'err');
+    await sleep(1500);
+    showScreen('screenJobList');
+  }
+}
+
+// ── CSV PARSER ──
+// Format: "Section","Item","Entry Type","Entered Value","Unit"
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const data = {};
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    if (cols.length < 4) continue;
+    const section = cols[0]?.trim() || '';
+    const item = cols[1]?.trim() || '';
+    const value = cols[3]?.trim() || '';
+    if (!section || !item) continue;
+    if (!data[section]) data[section] = {};
+    data[section][item] = value;
+  }
+  return data;
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i+1] === '"') { current += '"'; i++; }
+      else inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current); current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// ── JOB REVIEW RENDER ──
+function renderJobReview() {
+  const d = parsedData;
+  const contact = d['CONTACT'] || {};
+  const scope = d['GENERAL SCOPE'] || {};
+
+  const address = contact['Street address'] || '';
+  const cityStateZip = contact['City, State, ZIP'] || '';
+  const inspDate = contact['Inspection date'] || '';
+  const clientName = contact['Client name'] || '';
+  const clientPhone = contact['Client phone'] || '';
+  const clientEmail = contact['Client email'] || '';
+  const inspector = contact['Inspector name'] || '';
+
+  const tpoSelected = scope['TPO - selected'] === 'Yes';
+  const tpoScope = scope['TPO - scope type'] || '';
+  const tpoNotes = scope['TPO - notes'] || '';
+
+  // Find facets
+  const facets = getFacets(d);
+
+  document.getElementById('reviewTitle').textContent = address || 'Job Loaded';
+  document.getElementById('reviewSub').textContent = `${cityStateZip} · Inspected ${inspDate}`;
+
+  let html = '';
+
+  // Property block
+  html += dataBlock('🏠', 'Property', [
+    ['Address', address || '—'],
+    ['City / State / ZIP', cityStateZip || '—'],
+    ['Inspection Date', inspDate || '—'],
+    ['Client', clientName || '—'],
+    ['Phone', clientPhone || '—'],
+    ['Email', clientEmail || '—'],
+    ['Inspector', inspector || '—'],
+  ]);
+
+  // System block
+  html += dataBlock('🔲', 'Roof System', [
+    ['Membrane Type', tpoSelected ? 'TPO' : '—', tpoSelected ? 'highlight' : ''],
+    ['Scope Type', capitalize(tpoScope) || '—'],
+    ['Field Notes', tpoNotes || '—', tpoNotes ? '' : 'missing'],
+  ]);
+
+  // Facet summary
+  if (facets.length > 0) {
+    const facetRows = facets.map(f => [f.name, buildFacetSummary(f.data)]);
+    html += dataBlock('📐', 'Facets', facetRows, `${facets.length} facet${facets.length > 1 ? 's' : ''}`);
+  }
+
+  // Core sample
+  let coreVal = '—';
+  let coreClass = 'missing';
+  facets.forEach(f => {
+    const spec = f.data['SPEC'] || {};
+    if (spec['Core sample taken'] === 'yes') { coreVal = 'Yes'; coreClass = 'highlight'; }
+  });
+  html += dataBlock('🔩', 'Core Sample', [
+    ['Core Sample Taken', coreVal, coreClass],
+    ['Thickness (mil)', 'Not yet measured', coreClass === 'highlight' ? 'warn' : 'missing'],
+  ]);
+
+  document.getElementById('parsedScreen').innerHTML = html;
+
+  // Render flags
+  renderFlags(d, facets);
+}
+
+function dataBlock(icon, title, rows, badge = '') {
+  const rowsHtml = rows.map(([label, value, cls]) =>
+    `<div class="data-row">
+      <span class="data-label">${escHtml(label)}</span>
+      <span class="data-value ${cls || ''}">${escHtml(String(value))}</span>
+    </div>`
+  ).join('');
+  return `<div class="data-block">
+    <div class="data-block-hdr">
+      <span class="data-block-icon">${icon}</span>
+      <span class="data-block-title">${title}</span>
+      ${badge ? `<span class="data-block-badge">${badge}</span>` : ''}
+    </div>
+    ${rowsHtml}
+  </div>`;
+}
+
+function getFacets(d) {
+  const facets = [];
+  const seen = new Set();
+  for (const key of Object.keys(d)) {
+    const m = key.match(/^(FACET [A-Z]+)\s*\//);
+    if (m) {
+      const facetKey = m[1];
+      if (!seen.has(facetKey)) {
+        seen.add(facetKey);
+        // Collect all sub-sections for this facet
+        const facetData = {};
+        for (const k of Object.keys(d)) {
+          if (k.startsWith(facetKey + ' /')) {
+            const subKey = k.replace(facetKey + ' / ', '').trim();
+            // Extract sub-section type (SPEC, PENETRATIONS, etc.)
+            const subMatch = subKey.match(/^([A-Z]+)\s/);
+            const subType = subMatch ? subMatch[1] : subKey.split(' ')[0];
+            if (!facetData[subType]) facetData[subType] = {};
+            Object.assign(facetData[subType], d[k]);
+          }
+        }
+        facets.push({ name: facetKey, data: facetData });
+      }
+    }
+  }
+  return facets;
+}
+
+function buildFacetSummary(facetData) {
+  const spec = facetData['SPEC'] || {};
+  const pens = facetData['PENETRATIONS'] || {};
+  const parts = [];
+  if (spec['Existing layers']) parts.push(spec['Existing layers'] + ' layer(s)');
+  if (spec['Layer 1 system']) parts.push(spec['Layer 1 system']);
+  if (spec['Core sample taken'] === 'yes') parts.push('core ✓');
+  if (pens['Pipe stands']) parts.push(pens['Pipe stands'] + ' pipe stands');
+  return parts.join(' · ') || 'See checklist';
+}
+
+function renderFlags(d, facets) {
+  const flags = [];
+  const contact = d['CONTACT'] || {};
+  const scope = d['GENERAL SCOPE'] || {};
+
+  // Storm report
+  if (!stormReportFound) {
+    flags.push({ type: 'warn', icon: '🌩️', title: 'Storm Report Missing', text: 'Add storm/hail PDF to the Drive job folder before finalizing the RUL report.' });
+  } else {
+    flags.push({ type: 'ok', icon: '🌩️', title: 'Storm Report On File', text: 'PDF found in Drive job folder.' });
+  }
+
+  // Core sample
+  let coreTaken = false;
+  facets.forEach(f => {
+    if ((f.data['SPEC'] || {})['Core sample taken'] === 'yes') coreTaken = true;
+  });
+  if (!coreTaken) {
+    flags.push({ type: 'warn', icon: '🔩', title: 'Core Sample Not Taken', text: 'Membrane thickness unknown. Micrometer measurement required for high-confidence RUL. Will be added to checklist.' });
+  }
+
+  // TPO notes
+  const tpoNotes = scope['TPO - notes'] || '';
+  if (tpoNotes) {
+    flags.push({ type: 'info', icon: '📝', title: 'Field Note Detected', text: tpoNotes });
+  }
+
+  // Inspector blank
+  if (!contact['Inspector name']) {
+    flags.push({ type: 'warn', icon: '👤', title: 'Inspector Name Blank', text: 'Inspector name not entered in inspection app. Will show as blank on RUL report.' });
+  }
+
+  // No manufacturer data — will be triggered in checklist
+  flags.push({ type: 'info', icon: '🏷️', title: 'Manufacturer Unknown', text: 'No manufacturer identified in CSV. Date stamp and manufacturer confirmation added to checklist.' });
+
+  const flagsHtml = flags.map(f => `
+    <div class="flag-item flag-${f.type}">
+      <span class="flag-icon">${f.icon}</span>
+      <div class="flag-text"><strong>${escHtml(f.title)}</strong>${escHtml(f.text)}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('flagList').innerHTML = flagsHtml;
+}
+
+// ── NAVIGATION ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+
+  const phases = { screenJobList: 'PHASE 1 — JOB SELECTION', screenJobLoading: 'PHASE 1 — LOADING', screenJobReview: 'PHASE 1 — REVIEW' };
+  document.getElementById('phaseBar').textContent = phases[id] || '';
+}
+
+function goBack() {
+  showScreen('screenJobList');
+  setProgress(0);
+}
+
+function proceedToChecklist() {
+  // Phase 2 — will be built next
+  showToast('Phase 2 coming next — TPO Checklist', 'warn');
+}
+
+// ── STEP INDICATORS ──
+function setStep(id, state, result = '') {
+  const dot = document.getElementById('dot-' + id);
+  const lbl = document.getElementById('lbl-' + id);
+  const res = document.getElementById('res-' + id);
+  dot.className = 'step-dot dot-' + state;
+  lbl.className = 'step-item-label ' + (state === 'active' ? 'active' : state === 'done' ? 'done' : state === 'error' ? 'error' : '');
+  res.textContent = result;
+}
+
+function setProgress(pct) {
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+// ── TOAST ──
+function showToast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show toast-' + type;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── PERSISTENCE ──
+function saveState(data) {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch(e) {}
+}
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch(e) { return null; }
+}
+
+// ── UTILS ──
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function capitalize(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+}
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+// ── ADDRESS NORMALIZER (catalog: Address Normalizer — ported verbatim from docs@ v18) ──
+// Single source of truth for all address comparison across KCC apps.
+function normalizeStreetName(addr) {
+  if (!addr) return '';
+  return addr.toLowerCase()
+    .replace(/\bst\b/g,'street').replace(/\brd\b/g,'road').replace(/\bdr\b/g,'drive')
+    .replace(/\bave?\b/g,'avenue').replace(/\bblvd\b/g,'boulevard').replace(/\bln\b/g,'lane')
+    .replace(/\bct\b/g,'court').replace(/\bpl\b/g,'place').replace(/\bcir\b/g,'circle')
+    .replace(/\bhwy\b/g,'highway').replace(/\bpkwy\b/g,'parkway').replace(/\bsq\b/g,'square')
+    .replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();
+}
+
+// ── FUZZY MATCHER (catalog: Fuzzy Matcher — 0.70 threshold + exact street number) ──
+// Street number must be exact match before fuzzy score calculated on street name.
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, (_, i) => Array.from({length: n+1}, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+function fuzzyMatch(input, candidates) {
+  const normInput = normalizeStreetName(input);
+  const inputNum = normInput.match(/^\d+/)?.[0] || '';
+  let bestScore = 0, bestIdx = -1;
+  candidates.forEach(function(c, i) {
+    const normC = normalizeStreetName(c);
+    const candNum = normC.match(/^\d+/)?.[0] || '';
+    // RULE: street number must be exact match before fuzzy scoring
+    if (inputNum && candNum && inputNum !== candNum) return;
+    const maxLen = Math.max(normInput.length, normC.length);
+    if (maxLen === 0) return;
+    const score = 1 - levenshtein(normInput, normC) / maxLen;
+    if (score > bestScore) { bestScore = score; bestIdx = i; }
+  });
+  return { idx: bestIdx, score: bestScore, found: bestScore >= 0.70 };
+}
+
+// ── INSPECTOR LIST LOADER (catalog: Inspector List Loader — loadInspectors verbatim pattern) ──
+function loadInspectors() {
+  fetch(SHEETS_URL)
+    .then(function(r){ return r.text(); })
+    .then(function(csv){
+      var lines = csv.trim().split('\n').slice(1);
+      inspectorList = [];
+      lines.forEach(function(line){
+        var parts = line.split(',').map(function(s){ return s.trim().replace(/^"|"$/g,''); });
+        if (parts[0]) inspectorList.push({name: parts[0], email: parts[1] || ''});
+      });
+    })
+    .catch(function(){
+      // Silent fail on TPO — no inspector dropdown in Phase 1 UI
+      // Phase 2 checklist will surface error if list is empty
+    });
+}
+
+// ── BOOT ──
+initAuth();
+</script>
+</body>
+</html>
